@@ -2,9 +2,10 @@ __credits__ = ["Intelligent Unmanned Systems Laboratory at Westlake University."
 '''
 Specify parameters of the env
 '''
-from typing import Union
-import numpy as np
 import argparse
+from typing import Union
+
+import numpy as np
 
 parser = argparse.ArgumentParser("Grid World Environment")
 
@@ -39,8 +40,8 @@ parser.add_argument("--animation-interval", type=float, default = 0.2)
 ## ==================== End of Advanced settings ====================
 
 
-parser.add_argument("--agent", type=str, choices=["dqn", "ddqn", "dueling_ddqn", "multistep_dqn"], default="dqn", help="Specify the agent type.")
-parser.add_argument("--train", type=bool, default=False)
+parser.add_argument("--agent", type=str, choices=["dqn", "ddqn", "dueling_ddqn", "multistep_dqn", 'prioritized_ddqn', 'distributional_dqn', 'noise_dqn'], default="distributional_dqn", help="Specify the agent type.")
+parser.add_argument("--train", type=bool, default=True)
 parser.add_argument("--test", type=bool, default=False)
 
 

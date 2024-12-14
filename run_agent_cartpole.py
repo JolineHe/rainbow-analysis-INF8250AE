@@ -1,41 +1,39 @@
-from envs.grid_world import GridWorld
-from arguments import args
+import os
+
 import matplotlib.pyplot as plt
-from agents.dqn import DQNAgent
+import numpy as np
+import torch
+
 from agents.ddqn import DoubleDQNAgent
+from agents.dqn import DQNAgent
 from agents.dueling_ddqn import DuelingDDQNAgent
 from agents.multistep_dqn import MultiStepDQNAgent
 from agents.prioritized_ddqn import PrioritizedDoubleDQNAgent
 from agents.distributional_dqn import DistributionalDQNAgent
 from agents.noisy_dqn import NoiseDQNAgent
-import numpy as np
-import torch
-import os
+
+from arguments import args
+from envs.cart_pole import CartPoleEnv
 
 def train_agent(agent, num_episodes=1000):
     max_steps = 50
     batch_size = 32
     returns = []
     for episode in range(num_episodes):
-        state, _ = env.reset()
-        state_one_hot = np.zeros(state_dim)
-        state_index = state[0] * args.env_size[1] + state[1]
-        state_one_hot[state_index] = 1
-
+        state_begin, _ = env.reset()
+        state, _ = state_begin
         total_reward = 0
         for step in range(max_steps):
-            action_idx = agent.act(state_one_hot)
+            action_idx = agent.act(state)
             action = env.action_space[action_idx]
 
             next_state, reward, done, _ = env.step(action)
-            next_state_one_hot = np.zeros(state_dim)
-            next_state_index = next_state[0] * args.env_size[1] + next_state[1]
-            next_state_one_hot[next_state_index] = 1
 
-            agent.store_experience(state_one_hot, action_idx, reward, next_state_one_hot, done)
+            agent.store_experience(state, action_idx, reward, next_state, done)
             agent.train(batch_size)
 
-            state_one_hot = next_state_one_hot
+            # state_one_hot = next_state_one_hot
+            state = next_state
             total_reward += reward
 
             if done:
@@ -53,13 +51,12 @@ def train_agent(agent, num_episodes=1000):
     plt.title(f"Training Returns of {args.agent} ")
     plt.xlabel("Episodes")
     plt.ylabel("Total Reward")
-    plt.savefig(f"figures/{args.agent}.png")
+    plt.savefig(f"figures/{args.agent}-cartpole.png")
     plt.show()
     
     # Save the agent parameters
-    torch.save(agent.q_network.state_dict(), f"models/{args.agent}_model.pth")
+    torch.save(agent.q_network.state_dict(), f"models/{args.agent}_model-cartpole.pth")
     print(f"Model parameters saved to {args.agent}_model.pth")
-
 
 def test_agent(agent, test_start_state=(2,0), epsilon=0.1):
     model_file = f"models/{args.agent}_model.pth"
@@ -92,11 +89,8 @@ def test_agent(agent, test_start_state=(2,0), epsilon=0.1):
         state = next_state
 
 if __name__=='__main__':
-    # Integrate DQN into GridWorld
-    env = GridWorld(env_size=args.env_size,
-                    start_state=args.start_state,
-                    target_state=args.target_state,
-                    forbidden_states=args.forbidden_states)
+    env = CartPoleEnv()
+    env.render()
     state_dim = env.num_states
     action_dim = len(env.action_space)
 
@@ -122,6 +116,7 @@ if __name__=='__main__':
 
     if args.test:
         test_agent(agent, test_start_state=(7,0), epsilon=0.1)
+    
 
     # Save the trained model parameters
     # torch.save(agent.q_network.state_dict(), 'dqn_model.pth')
