@@ -74,7 +74,7 @@ class NoiseDQNAgent(DQNAgent):
         self.q_network = Noise_DQN(state_dim, action_dim)
         self.target_q_network = Noise_DQN(state_dim, action_dim)
         self.target_q_network.load_state_dict(self.q_network.state_dict())
-        self.target_q_network.eval()
+        # self.target_q_network.eval()
 
         self.optimizer = optim.Adam(self.q_network.parameters(), lr=lr)
         self.loss_fn = nn.MSELoss()
@@ -113,7 +113,10 @@ class NoiseDQNAgent(DQNAgent):
 
         self.reset_noise()
         q_values = self.q_network(states).gather(1, actions)
-        next_q_values = self.target_q_network(next_states).max(1, keepdim=True)[0]
+
+        # no grad instead of value cuz we need to evaluate with noise
+        with torch.no_grad():
+            next_q_values = self.target_q_network(next_states).max(1, keepdim=True)[0]
         target_q_values = rewards + (1 - dones) * self.gamma * next_q_values
 
         loss = self.loss_fn(q_values, target_q_values)

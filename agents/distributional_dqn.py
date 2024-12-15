@@ -5,6 +5,8 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 from agents.dqn import DQNAgent
+import torch.optim as optim
+import numpy as np
 
 
 class Distributional_DQN(nn.Module):
@@ -72,7 +74,7 @@ def project_distribution(next_dist, rewards, dones, gamma, support, v_min, v_max
 class DistributionalDQNAgent(DQNAgent):
     def __init__(self, state_dim, action_dim, gamma=0.99, lr=0.0001,
                  epsilon=1.0, epsilon_min=0.01, epsilon_decay=0.995,
-                 num_atoms=51, v_min=-10.0, v_max=10.0):
+                 num_atoms=51, v_min=0.0, v_max=50.0):
         super().__init__(state_dim, action_dim, gamma, lr, epsilon, epsilon_min, epsilon_decay)
         self.num_atoms = num_atoms
         self.v_min = v_min
@@ -83,7 +85,12 @@ class DistributionalDQNAgent(DQNAgent):
         self.target_q_network.load_state_dict(self.q_network.state_dict())
         self.target_q_network.eval()
 
+        self.optimizer = optim.Adam(self.q_network.parameters(), lr=lr)
+        self.loss_fn = nn.MSELoss()
+
     def act(self, state):
+        if np.random.rand() < self.epsilon:
+            return np.random.randint(self.action_dim)
         state_tensor = torch.FloatTensor(state).unsqueeze(0)
         with torch.no_grad():
             dist = self.q_network(state_tensor)  # [1, action_dim, num_atoms]
@@ -112,11 +119,11 @@ class DistributionalDQNAgent(DQNAgent):
             next_q = (online_next_dist * self.support.unsqueeze(0).unsqueeze(0)).sum(dim=2)  # [batch, action_dim]
             next_actions = torch.argmax(next_q, dim=1, keepdim=True)  # [batch, 1]
 
-            next_dist = next_dist.gather(1, next_actions.unsqueeze(-1).expand(batch_size, 1, self.num_atoms))
-            next_dist = next_dist.squeeze(1)  # [batch, num_atoms]
+        next_dist = next_dist.gather(1, next_actions.unsqueeze(-1).expand(batch_size, 1, self.num_atoms))
+        next_dist = next_dist.squeeze(1)  # [batch, num_atoms]
 
-            projected_dist = project_distribution(next_dist, rewards, dones, self.gamma,
-                                                  self.support, self.v_min, self.v_max)  # [batch, num_atoms]
+        projected_dist = project_distribution(next_dist, rewards, dones, self.gamma,
+                                                self.support, self.v_min, self.v_max)  # [batch, num_atoms]
 
         dist_log = torch.log(dist + 1e-8)
         loss = - (projected_dist * dist_log).sum(dim=1).mean()
@@ -124,6 +131,7 @@ class DistributionalDQNAgent(DQNAgent):
         self.optimizer.zero_grad()
         loss.backward()
         self.optimizer.step()
+        # print(self.q_network.fc1.weight.grad.norm().item())
         self.decay_epsilon()
 
     
