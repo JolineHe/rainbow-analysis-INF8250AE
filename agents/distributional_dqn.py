@@ -35,8 +35,6 @@ def project_distribution(next_dist, rewards, dones, gamma, support, v_min, v_max
 
     projected_dist = torch.zeros_like(next_dist)  # [batch_size, num_atoms]
 
-    batch_indices = torch.arange(batch_size)
-
     for i in range(num_atoms):
         Tz = rewards + (1 - dones) * gamma * support[i]
         Tz = torch.clamp(Tz, v_min, v_max)
@@ -72,7 +70,6 @@ def project_distribution(next_dist, rewards, dones, gamma, support, v_min, v_max
     return projected_dist
 
 def project_distribution_vec(next_dist, rewards, dones, gamma, support, v_min, v_max):
-    batch_size = rewards.size(0)
     num_atoms = support.size(0)
     delta_z = (v_max - v_min) / (num_atoms - 1)
 
@@ -162,11 +159,11 @@ class DistributionalDQNAgent(DQNAgent):
         next_dist = next_dist.gather(1, next_actions.unsqueeze(-1).expand(batch_size, 1, self.num_atoms))
         next_dist = next_dist.squeeze(1)  # [batch, num_atoms]
 
-        projected_dist = project_distribution(next_dist, rewards, dones, self.gamma,
+        projected_dist = project_distribution_vec(next_dist, rewards, dones, self.gamma,
                                                 self.support, self.v_min, self.v_max)  # [batch, num_atoms]
-        projected_dist_vec = project_distribution_vec(next_dist, rewards, dones, self.gamma,
-                                                self.support, self.v_min, self.v_max)
-        print(torch.dist(projected_dist, projected_dist_vec).item())
+        # projected_dist_vec = project_distribution_vec(next_dist, rewards, dones, self.gamma,
+        #                                         self.support, self.v_min, self.v_max)
+        # print(torch.dist(projected_dist, projected_dist_vec).item())
 
         dist_log = torch.log(dist + 1e-8)
         loss = - (projected_dist * dist_log).sum(dim=1).mean()
