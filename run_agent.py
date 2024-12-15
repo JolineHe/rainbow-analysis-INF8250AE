@@ -124,7 +124,7 @@ if __name__=='__main__':
 
     # Execute based on parameters
     if args.train:
-        train_agent(agent, num_episodes=500)
+        train_agent(agent, num_episodes=1000)
 
     if args.test:
         test_agent(agent, test_start_state=(7,0), epsilon=0.1)

@@ -6,7 +6,7 @@ import torch.nn.functional as F
 import torch.optim as optim
 from agents.dqn import DQNAgent
 import random
-# import numpy as np
+import numpy as np
 # from collections import deque
 
 class NoisyLinear(nn.Module):
@@ -23,6 +23,9 @@ class NoisyLinear(nn.Module):
         self.bias_mu = nn.Parameter(torch.empty(out_features))
         self.bias_sigma = nn.Parameter(torch.empty(out_features))
         self.register_buffer("bias_epsilon", torch.empty(out_features))
+
+        # self.weight_sigma = torch.ones((out_features, in_features), requires_grad=False) * self.sigma_init
+        # self.bias_sigma = torch.ones(out_features, requires_grad=False) * self.sigma_init
 
         self.reset_parameters()
         self.reset_noise()
@@ -69,7 +72,7 @@ class Noise_DQN(nn.Module):
         return self.fc3(x)
 
 class NoiseDQNAgent(DQNAgent):
-    def __init__(self, state_dim, action_dim, gamma=0.9, lr=0.001, epsilon=0, epsilon_min=0, epsilon_decay=0.995):
+    def __init__(self, state_dim, action_dim, gamma=0.9, lr=0.001, epsilon=1.0, epsilon_min=0.01, epsilon_decay=0.995):
         super().__init__(state_dim, action_dim, gamma, lr, epsilon, epsilon_min, epsilon_decay)
         self.q_network = Noise_DQN(state_dim, action_dim)
         self.target_q_network = Noise_DQN(state_dim, action_dim)
@@ -80,6 +83,8 @@ class NoiseDQNAgent(DQNAgent):
         self.loss_fn = nn.MSELoss()
 
     def act(self, state):
+        # if np.random.rand() < self.epsilon:
+        #     return np.random.randint(self.action_dim)
         self.reset_noise()
         state_tensor = torch.FloatTensor(state).unsqueeze(0)
         with torch.no_grad():
@@ -117,7 +122,7 @@ class NoiseDQNAgent(DQNAgent):
         # no grad instead of value cuz we need to evaluate with noise
         with torch.no_grad():
             next_q_values = self.target_q_network(next_states).max(1, keepdim=True)[0]
-        target_q_values = rewards + (1 - dones) * self.gamma * next_q_values
+            target_q_values = rewards + (1 - dones) * self.gamma * next_q_values
 
         loss = self.loss_fn(q_values, target_q_values)
         self.optimizer.zero_grad()
