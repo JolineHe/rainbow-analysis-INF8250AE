@@ -10,7 +10,7 @@ import random
 # from collections import deque
 
 class NoisyLinear(nn.Module):
-    def __init__(self, in_features, out_features, sigma_init=0.01):
+    def __init__(self, in_features, out_features, sigma_init=0.1):
         super(NoisyLinear, self).__init__()
         self.in_features = in_features
         self.out_features = out_features
@@ -28,12 +28,12 @@ class NoisyLinear(nn.Module):
         self.reset_noise()
 
     def reset_parameters(self):
-        # mu_range = 1 / math.sqrt(self.in_features)
-        mu_range = 1
+        mu_range = 1 / math.sqrt(self.in_features)
+        # mu_range = 1
         self.weight_mu.data.uniform_(-mu_range, mu_range)
-        self.weight_sigma.data.fill_(self.sigma_init * mu_range)
+        self.weight_sigma.data.fill_(self.sigma_init)
         self.bias_mu.data.uniform_(-mu_range, mu_range)
-        self.bias_sigma.data.fill_(self.sigma_init * mu_range)
+        self.bias_sigma.data.fill_(self.sigma_init)
 
     def reset_noise(self):
         epsilon_in = self._scale_noise(self.in_features)
