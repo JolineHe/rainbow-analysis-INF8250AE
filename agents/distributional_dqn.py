@@ -35,7 +35,6 @@ def project_distribution(next_dist, rewards, dones, gamma, support, v_min, v_max
 
     batch_indices = torch.arange(batch_size)
 
-    # 对每个原子位置 i 的分布质量投影到目标分布中
     for i in range(num_atoms):
         Tz = rewards + (1 - dones) * gamma * support[i]
         Tz = torch.clamp(Tz, v_min, v_max)
@@ -50,16 +49,13 @@ def project_distribution(next_dist, rewards, dones, gamma, support, v_min, v_max
         eq_mask = (l == u)
         not_eq_mask = ~eq_mask
 
-        # dist_slice: [batch_size], 对应当前原子的概率分布质量
         dist_slice = next_dist[:, i]
 
-        # eq_mask情形: 所有概率放入l对应的位置
         if eq_mask.any():
             eq_idx = eq_mask.nonzero(as_tuple=True)[0]  # eq_idx为eq_mask为True的batch下标
             l_eq = l[eq_idx]
             projected_dist[eq_idx, l_eq] += dist_slice[eq_idx]
 
-        # not_eq情形: 概率分布在 l 和 u 两个bin之间线性分配
         if not_eq_mask.any():
             neq_idx = not_eq_mask.nonzero(as_tuple=True)[0]
             l_neq = l[neq_idx]
@@ -68,9 +64,7 @@ def project_distribution(next_dist, rewards, dones, gamma, support, v_min, v_max
             u_offset = (u.float() - b)[neq_idx]
             l_offset = (b - l.float())[neq_idx]
 
-            # 对应 l bin 分配
             projected_dist[neq_idx, l_neq] += dist_slice[neq_idx] * u_offset
-            # 对应 u bin 分配
             projected_dist[neq_idx, u_neq] += dist_slice[neq_idx] * l_offset
 
     return projected_dist
@@ -94,7 +88,6 @@ class DistributionalDQNAgent(DQNAgent):
         with torch.no_grad():
             dist = self.q_network(state_tensor)  # [1, action_dim, num_atoms]
         q_values = torch.sum(dist * self.support.unsqueeze(0).unsqueeze(0), dim=2)
-        # 根据期望Q值选择动作
         return torch.argmax(q_values, dim=1).item()
 
     def train(self, batch_size=32):
@@ -109,7 +102,6 @@ class DistributionalDQNAgent(DQNAgent):
         next_states = torch.FloatTensor(next_states)
         dones = torch.FloatTensor(dones).unsqueeze(1)
 
-        # 当前分布 [batch, action_dim, num_atoms]
         dist = self.q_network(states)
         dist = dist.gather(1, actions.unsqueeze(-1).expand(batch_size, 1, self.num_atoms))  # [batch,1,num_atoms]
         dist = dist.squeeze(1)  # [batch, num_atoms]
@@ -123,11 +115,9 @@ class DistributionalDQNAgent(DQNAgent):
             next_dist = next_dist.gather(1, next_actions.unsqueeze(-1).expand(batch_size, 1, self.num_atoms))
             next_dist = next_dist.squeeze(1)  # [batch, num_atoms]
 
-            # 分布投影
             projected_dist = project_distribution(next_dist, rewards, dones, self.gamma,
                                                   self.support, self.v_min, self.v_max)  # [batch, num_atoms]
 
-        # 计算交叉熵损失
         dist_log = torch.log(dist + 1e-8)
         loss = - (projected_dist * dist_log).sum(dim=1).mean()
 
