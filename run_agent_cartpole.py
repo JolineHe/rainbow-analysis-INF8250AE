@@ -12,13 +12,13 @@ from agents.prioritized_ddqn import PrioritizedDoubleDQNAgent
 from agents.distributional_dqn import DistributionalDQNAgent
 from agents.noisy_dqn import NoiseDQNAgent
 from agents.a3c_dqn import A3CAgent
-
+from agents.rainbow import RainbowAgent
 from arguments import args
 from envs.cart_pole import CartPoleEnv
 
-def train_agent(agent, num_episodes=1000):
-    max_steps = 50
-    batch_size = 32
+def train_agent(agent, num_episodes=500):
+    max_steps = 64
+    batch_size = 128
     returns = []
     for episode in range(num_episodes):
         state_begin, _ = env.reset()
@@ -33,11 +33,11 @@ def train_agent(agent, num_episodes=1000):
             agent.store_experience(state, action_idx, reward, next_state, done)
             agent.train(batch_size)
 
-            # state_one_hot = next_state_one_hot
             state = next_state
             total_reward += reward
 
             if done:
+                env.reset()
                 break
 
         agent.update_target_network()
@@ -89,7 +89,7 @@ def test_agent(agent, test_start_state=(2,0), epsilon=0.1):
             break
         state = next_state
 
-if __name__=='__main__':
+if __name__=='__main1__':
     env = CartPoleEnv()
     env.render()
     state_dim = env.num_states
@@ -110,6 +110,8 @@ if __name__=='__main__':
         agent = NoiseDQNAgent(state_dim=state_dim, action_dim=action_dim)
     elif args.agent == "a3c":
         agent = A3CAgent(state_dim=state_dim, action_dim=action_dim)
+    elif args.agent == "rainbow":
+        agent = RainbowAgent(state_dim=state_dim, action_dim=action_dim)
     elif args.agent == "multistep_dqn":
         agent = MultiStepDQNAgent(state_dim=state_dim, action_dim=action_dim, n_step=3)
 
@@ -125,7 +127,43 @@ if __name__=='__main__':
     # torch.save(agent.q_network.state_dict(), 'dqn_model.pth')
     # print("Model parameters saved to dqn_model.pth")
 
+if __name__ == '__main__':
+    env = CartPoleEnv()
+    env.render()
+    state_dim = env.num_states
+    action_dim = len(env.action_space)
+    agents = ["dqn", "ddqn", "dueling_ddqn", "multistep_dqn", 'prioritized_ddqn', 'distributional_dqn', 'noise_dqn', 'a3c', 'rainbow']
+    for agent_name in agents:
+        print(agent_name)
+        # Choose the agent
+        if agent_name == "dqn":
+            agent = DQNAgent(state_dim=state_dim, action_dim=action_dim)
+        elif agent_name == "ddqn":
+            agent = DoubleDQNAgent(state_dim=state_dim, action_dim=action_dim)
+        elif agent_name == "dueling_ddqn":
+            agent = DuelingDDQNAgent(state_dim=state_dim, action_dim=action_dim)
+        elif agent_name == "prioritized_ddqn":
+            agent = PrioritizedDoubleDQNAgent(state_dim=state_dim, action_dim=action_dim)
+        elif agent_name == "distributional_dqn":
+            agent = DistributionalDQNAgent(state_dim=state_dim, action_dim=action_dim)
+        elif agent_name == "noise_dqn":
+            agent = NoiseDQNAgent(state_dim=state_dim, action_dim=action_dim)
+        elif agent_name == "a3c":
+            agent = A3CAgent(state_dim=state_dim, action_dim=action_dim)
+        elif agent_name == "rainbow":
+            agent = RainbowAgent(state_dim=state_dim, action_dim=action_dim)
+        elif agent_name == "multistep_dqn":
+            agent = MultiStepDQNAgent(state_dim=state_dim, action_dim=action_dim, n_step=3)
 
-    
+        # Execute based on parameters
+        if args.train:
+            train_agent(agent, num_episodes=500)
+
+        if args.test:
+            test_agent(agent, test_start_state=(7, 0), epsilon=0.1)
+
+    # Save the trained model parameters
+    # torch.save(agent.q_network.state_dict(), 'dqn_model.pth')
+    # print("Model parameters saved to dqn_model.pth")
 
     

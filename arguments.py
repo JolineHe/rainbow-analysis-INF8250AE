@@ -40,7 +40,7 @@ parser.add_argument("--animation-interval", type=float, default = 0.2)
 ## ==================== End of Advanced settings ====================
 
 
-parser.add_argument("--agent", type=str, choices=["dqn", "ddqn", "dueling_ddqn", "multistep_dqn", 'prioritized_ddqn', 'distributional_dqn', 'noise_dqn', 'a3c'], default="a3c", help="Specify the agent type.")
+parser.add_argument("--agent", type=str, choices=["dqn", "ddqn", "dueling_ddqn", "multistep_dqn", 'prioritized_ddqn', 'distributional_dqn', 'noise_dqn', 'a3c', 'rainbow'], default="distributional_dqn", help="Specify the agent type.")
 parser.add_argument("--train", type=bool, default=True)
 parser.add_argument("--test", type=bool, default=False)
 
