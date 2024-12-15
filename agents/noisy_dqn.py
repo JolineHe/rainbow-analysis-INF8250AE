@@ -5,6 +5,9 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
 from agents.dqn import DQNAgent
+import random
+# import numpy as np
+# from collections import deque
 
 class NoisyLinear(nn.Module):
     def __init__(self, in_features, out_features, sigma_init=0.01):
@@ -25,8 +28,8 @@ class NoisyLinear(nn.Module):
         self.reset_noise()
 
     def reset_parameters(self):
-        mu_range = 1 / math.sqrt(self.in_features)
-        # mu_range = 1
+        # mu_range = 1 / math.sqrt(self.in_features)
+        mu_range = 1
         self.weight_mu.data.uniform_(-mu_range, mu_range)
         self.weight_sigma.data.fill_(self.sigma_init * mu_range)
         self.bias_mu.data.uniform_(-mu_range, mu_range)
@@ -42,6 +45,8 @@ class NoisyLinear(nn.Module):
         if self.training:
             weight = self.weight_mu + self.weight_sigma * self.weight_epsilon
             bias = self.bias_mu + self.bias_sigma * self.bias_epsilon
+            # weight = self.weight_mu
+            # bias = self.bias_mu
         else:
             weight = self.weight_mu
             bias = self.bias_mu
@@ -69,6 +74,10 @@ class NoiseDQNAgent(DQNAgent):
         self.q_network = Noise_DQN(state_dim, action_dim)
         self.target_q_network = Noise_DQN(state_dim, action_dim)
         self.target_q_network.load_state_dict(self.q_network.state_dict())
+        self.target_q_network.eval()
+
+        self.optimizer = optim.Adam(self.q_network.parameters(), lr=lr)
+        self.loss_fn = nn.MSELoss()
 
     def act(self, state):
         self.reset_noise()
@@ -88,3 +97,28 @@ class NoiseDQNAgent(DQNAgent):
     def update_target_network(self):
         self.target_q_network.load_state_dict(self.q_network.state_dict())
         # self.reset_noise()
+
+    def train(self, batch_size=32):
+        if len(self.replay_buffer) < batch_size:
+            return
+
+        batch = random.sample(self.replay_buffer, batch_size)
+        states, actions, rewards, next_states, dones = zip(*batch)
+
+        states = torch.FloatTensor(states)
+        actions = torch.LongTensor(actions).unsqueeze(1)
+        rewards = torch.FloatTensor(rewards).unsqueeze(1)
+        next_states = torch.FloatTensor(next_states)
+        dones = torch.FloatTensor(dones).unsqueeze(1)
+
+        self.reset_noise()
+        q_values = self.q_network(states).gather(1, actions)
+        next_q_values = self.target_q_network(next_states).max(1, keepdim=True)[0]
+        target_q_values = rewards + (1 - dones) * self.gamma * next_q_values
+
+        loss = self.loss_fn(q_values, target_q_values)
+        self.optimizer.zero_grad()
+        loss.backward()
+        # print("Mu grad norm: ", self.q_network.fc1.weight_mu.grad.norm().item())
+        # print("Sigma grad norm: ", self.q_network.fc1.weight_sigma.grad.norm().item())
+        self.optimizer.step()
