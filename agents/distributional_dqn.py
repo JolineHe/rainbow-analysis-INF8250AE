@@ -71,6 +71,46 @@ def project_distribution(next_dist, rewards, dones, gamma, support, v_min, v_max
 
     return projected_dist
 
+def project_distribution_vec(next_dist, rewards, dones, gamma, support, v_min, v_max):
+    batch_size = rewards.size(0)
+    num_atoms = support.size(0)
+    delta_z = (v_max - v_min) / (num_atoms - 1)
+
+    # Compute Tz and clamp to range [v_min, v_max]
+    Tz = rewards + (1 - dones) * gamma * support[None, :]
+    Tz = torch.clamp(Tz, v_min, v_max)
+
+    # Compute projection indices
+    b = (Tz - v_min) / delta_z
+    l = b.floor().long()
+    u = b.ceil().long()
+
+    # Clamp indices to valid range
+    l = torch.clamp(l, 0, num_atoms - 1)
+    u = torch.clamp(u, 0, num_atoms - 1)
+
+    # Compute offsets for interpolation
+    u_offset = (u.float() - b)
+    l_offset = (b - l.float())
+
+    # Handle edge case where l == u
+    eq_mask = (l == u)
+    l_offset[eq_mask] = 1.0  # Assign the full probability to `l` if `l == u`
+    u_offset[eq_mask] = 0.0
+
+    # Initialize the projected distribution
+    projected_dist = torch.zeros_like(next_dist)
+
+    # Scatter-add probabilities to the projected distribution
+    projected_dist.scatter_add_(
+        1, l, (next_dist * u_offset).view_as(l)
+    )
+    projected_dist.scatter_add_(
+        1, u, (next_dist * l_offset).view_as(u)
+    )
+
+    return projected_dist
+
 class DistributionalDQNAgent(DQNAgent):
     def __init__(self, state_dim, action_dim, gamma=0.99, lr=0.0001,
                  epsilon=1.0, epsilon_min=0.01, epsilon_decay=0.995,
@@ -124,6 +164,9 @@ class DistributionalDQNAgent(DQNAgent):
 
         projected_dist = project_distribution(next_dist, rewards, dones, self.gamma,
                                                 self.support, self.v_min, self.v_max)  # [batch, num_atoms]
+        projected_dist_vec = project_distribution_vec(next_dist, rewards, dones, self.gamma,
+                                                self.support, self.v_min, self.v_max)
+        print(torch.dist(projected_dist, projected_dist_vec).item())
 
         dist_log = torch.log(dist + 1e-8)
         loss = - (projected_dist * dist_log).sum(dim=1).mean()
