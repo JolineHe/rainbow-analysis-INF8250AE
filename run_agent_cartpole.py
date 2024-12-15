@@ -19,7 +19,9 @@ from envs.cart_pole import CartPoleEnv
 def train_agent(agent, num_episodes=500):
     max_steps = 64
     batch_size = 128
+
     returns = []
+    steps = []
     for episode in range(num_episodes):
         state_begin, _ = env.reset()
         state, _ = state_begin
@@ -42,17 +44,21 @@ def train_agent(agent, num_episodes=500):
         agent.update_target_network()
         agent.decay_epsilon()
         returns.append(total_reward)
-
+        steps.append(episode)
         print(f"Episode {episode + 1}/{num_episodes}, Total Reward: {total_reward}, Epsilon: {agent.epsilon:.2f}")
-
-    plt.figure(figsize=(16, 9))
-    plt.tight_layout()
-    plt.plot(returns)
-    plt.title(f"Training Returns of {args.agent} ")
-    plt.xlabel("Episodes")
-    plt.ylabel("Total Reward")
-    plt.savefig(f"figures/{args.agent}-cartpole.png")
-    plt.show()
+    return steps, returns
+    # plt.title(f"Training Returns of {args.agent} ")
+    # plt.grid()
+    # plt.legend()
+    # plt.savefig(f"figures/{args.agent}-cartpole.png")
+    # plt.figure(figsize=(16, 9))
+    # plt.tight_layout()
+    # plt.plot(returns)
+    # plt.title(f"Training Returns of {args.agent} ")
+    # plt.xlabel("Episodes")
+    # plt.ylabel("Total Reward")
+    # plt.savefig(f"figures/{args.agent}-cartpole.png")
+    # plt.show()
     
     # Save the agent parameters
     torch.save(agent.q_network.state_dict(), f"models/{args.agent}_model-cartpole.pth")
@@ -88,7 +94,7 @@ def test_agent(agent, test_start_state=(2,0), epsilon=0.1):
             break
         state = next_state
 
-if __name__=='__main__':
+if __name__=='__main_single__':
     env = CartPoleEnv()
     env.render()
     state_dim = env.num_states
@@ -126,7 +132,7 @@ if __name__=='__main__':
     # torch.save(agent.q_network.state_dict(), 'dqn_model.pth')
     # print("Model parameters saved to dqn_model.pth")
 
-if __name__ == '__main_batch__':
+if __name__ == '__main__':
     env = CartPoleEnv()
     env.render()
     state_dim = env.num_states
@@ -134,32 +140,49 @@ if __name__ == '__main_batch__':
     agents = ["dqn", "ddqn", "dueling_ddqn", "multistep_dqn", 'prioritized_ddqn', 'distributional_dqn', 'noise_dqn', 'a3c', 'rainbow']
     for agent_name in agents:
         print(agent_name)
-        # Choose the agent
-        if agent_name == "dqn":
-            agent = DQNAgent(state_dim=state_dim, action_dim=action_dim)
-        elif agent_name == "ddqn":
-            agent = DoubleDQNAgent(state_dim=state_dim, action_dim=action_dim)
-        elif agent_name == "dueling_ddqn":
-            agent = DuelingDDQNAgent(state_dim=state_dim, action_dim=action_dim)
-        elif agent_name == "prioritized_ddqn":
-            agent = PrioritizedDoubleDQNAgent(state_dim=state_dim, action_dim=action_dim)
-        elif agent_name == "distributional_dqn":
-            agent = DistributionalDQNAgent(state_dim=state_dim, action_dim=action_dim)
-        elif agent_name == "noise_dqn":
-            agent = NoiseDQNAgent(state_dim=state_dim, action_dim=action_dim)
-        elif agent_name == "a3c":
-            agent = A3CAgent(state_dim=state_dim, action_dim=action_dim)
-        elif agent_name == "rainbow":
-            agent = RainbowAgent(state_dim=state_dim, action_dim=action_dim)
-        elif agent_name == "multistep_dqn":
-            agent = MultiStepDQNAgent(state_dim=state_dim, action_dim=action_dim, n_step=3)
+        args.agent = agent_name
+        seeds_returns = {}
+        for SEED in (range(40, 51)):
+            np.random.seed(SEED)
+            if agent_name == "dqn":
+                agent = DQNAgent(state_dim=state_dim, action_dim=action_dim)
+            elif agent_name == "ddqn":
+                agent = DoubleDQNAgent(state_dim=state_dim, action_dim=action_dim)
+            elif agent_name == "dueling_ddqn":
+                agent = DuelingDDQNAgent(state_dim=state_dim, action_dim=action_dim)
+            elif agent_name == "prioritized_ddqn":
+                agent = PrioritizedDoubleDQNAgent(state_dim=state_dim, action_dim=action_dim)
+            elif agent_name == "distributional_dqn":
+                agent = DistributionalDQNAgent(state_dim=state_dim, action_dim=action_dim)
+            elif agent_name == "noise_dqn":
+                agent = NoiseDQNAgent(state_dim=state_dim, action_dim=action_dim)
+            elif agent_name == "a3c":
+                agent = A3CAgent(state_dim=state_dim, action_dim=action_dim)
+            elif agent_name == "rainbow":
+                agent = RainbowAgent(state_dim=state_dim, action_dim=action_dim)
+            elif agent_name == "multistep_dqn":
+                agent = MultiStepDQNAgent(state_dim=state_dim, action_dim=action_dim, n_step=3)
 
-        # Execute based on parameters
-        if args.train:
-            train_agent(agent, num_episodes=500)
+            # Execute based on parameters
+            if args.train:
+                steps, returns = train_agent(agent, num_episodes=500)
+                seeds_returns[SEED] = (steps, returns)
 
-        if args.test:
-            test_agent(agent, test_start_state=(7, 0), epsilon=0.1)
+            if args.test:
+                test_agent(agent, test_start_state=(7, 0), epsilon=0.1)
+
+        plt.figure(figsize=(16, 9))
+        plt.tight_layout()
+        mean_return = np.stack([seeds_returns[k][1] for k in seeds_returns.keys()]).mean(0)
+        std_return = np.stack([seeds_returns[k][1] for k in seeds_returns.keys()]).std(0)
+        plt.plot(steps, mean_return, label='dqn')
+        plt.title(f"Training Returns of {args.agent} ")
+        plt.xlabel("Episodes")
+        plt.ylabel("Total Reward")
+        plt.fill_between(steps, mean_return - std_return, mean_return + std_return, alpha=0.3)
+        plt.savefig(f"figures/{args.agent}-cartpole.png")
+        plt.show()
+        plt.ylim(0, 70)
 
     # Save the trained model parameters
     # torch.save(agent.q_network.state_dict(), 'dqn_model.pth')

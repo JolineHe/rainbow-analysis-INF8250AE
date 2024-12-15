@@ -35,8 +35,6 @@ def project_distribution(next_dist, rewards, dones, gamma, support, v_min, v_max
 
     projected_dist = torch.zeros_like(next_dist)  # [batch_size, num_atoms]
 
-    batch_indices = torch.arange(batch_size)
-
     for i in range(num_atoms):
         Tz = rewards + (1 - dones) * gamma * support[i]
         Tz = torch.clamp(Tz, v_min, v_max)
@@ -115,7 +113,6 @@ def project_distribution(next_dist, rewards, dones, gamma, support, v_min, v_max
     return projected_dist
 
 def project_distribution_vec(next_dist, rewards, dones, gamma, support, v_min, v_max):
-    batch_size = rewards.size(0)
     num_atoms = support.size(0)
     delta_z = (v_max - v_min) / (num_atoms - 1)
 
