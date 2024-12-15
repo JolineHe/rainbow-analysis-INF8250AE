@@ -3,12 +3,11 @@ import math
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-
+import torch.optim as optim
 from agents.dqn import DQNAgent
 
 class NoisyLinear(nn.Module):
-    def __init__(self, in_features, out_features, sigma_init=0.017):
-    # def __init__(self, in_features, out_features, sigma_init=0.017):
+    def __init__(self, in_features, out_features, sigma_init=0.01):
         super(NoisyLinear, self).__init__()
         self.in_features = in_features
         self.out_features = out_features
@@ -27,6 +26,7 @@ class NoisyLinear(nn.Module):
 
     def reset_parameters(self):
         mu_range = 1 / math.sqrt(self.in_features)
+        # mu_range = 1
         self.weight_mu.data.uniform_(-mu_range, mu_range)
         self.weight_sigma.data.fill_(self.sigma_init * mu_range)
         self.bias_mu.data.uniform_(-mu_range, mu_range)
@@ -72,9 +72,6 @@ class NoiseDQNAgent(DQNAgent):
 
     def act(self, state):
         self.reset_noise()
-        # self.q_network.fc1.reset_noise()
-        # self.q_network.fc2.reset_noise()
-        # self.q_network.fc3.reset_noise()
         state_tensor = torch.FloatTensor(state).unsqueeze(0)
         with torch.no_grad():
             q_values = self.q_network(state_tensor)

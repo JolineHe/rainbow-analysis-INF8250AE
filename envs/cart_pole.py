@@ -23,11 +23,7 @@ class CartPoleEnv:
         assert action in self.action_space, "Invalid action"
         self.env.step(action)
         state, reward, done, _, info = self.env.step(action)
-        if type(state) is tuple:
-            self.state = state
-        else:
-            self.state = state
-
+        self.state = state
         self.done = done
         return self.state, reward, self.done, info
 

@@ -11,6 +11,7 @@ from agents.multistep_dqn import MultiStepDQNAgent
 from agents.prioritized_ddqn import PrioritizedDoubleDQNAgent
 from agents.distributional_dqn import DistributionalDQNAgent
 from agents.noisy_dqn import NoiseDQNAgent
+from agents.a3c_dqn import A3CAgent
 
 from arguments import args
 from envs.cart_pole import CartPoleEnv
@@ -107,6 +108,8 @@ if __name__=='__main__':
         agent = DistributionalDQNAgent(state_dim=state_dim, action_dim=action_dim)
     elif args.agent == "noise_dqn":
         agent = NoiseDQNAgent(state_dim=state_dim, action_dim=action_dim)
+    elif args.agent == "a3c":
+        agent = A3CAgent(state_dim=state_dim, action_dim=action_dim)
     elif args.agent == "multistep_dqn":
         agent = MultiStepDQNAgent(state_dim=state_dim, action_dim=action_dim, n_step=3)
 
