@@ -37,7 +37,6 @@ def train_agent(agent, num_episodes=500):
             total_reward += reward
 
             if done:
-                env.reset()
                 break
 
         agent.update_target_network()
@@ -89,7 +88,7 @@ def test_agent(agent, test_start_state=(2,0), epsilon=0.1):
             break
         state = next_state
 
-if __name__=='__main1__':
+if __name__=='__main__':
     env = CartPoleEnv()
     env.render()
     state_dim = env.num_states
@@ -127,7 +126,7 @@ if __name__=='__main1__':
     # torch.save(agent.q_network.state_dict(), 'dqn_model.pth')
     # print("Model parameters saved to dqn_model.pth")
 
-if __name__ == '__main__':
+if __name__ == '__main_batch__':
     env = CartPoleEnv()
     env.render()
     state_dim = env.num_states
