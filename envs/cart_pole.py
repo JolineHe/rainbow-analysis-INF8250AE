@@ -3,7 +3,7 @@ import gym
 
 class CartPoleEnv:
     def __init__(self):
-        self.env = gym.make('CartPole-v1', render_mode='rgb_array')
+        self.env = gym.make('CartPole-v1')
         self.action_space = [0, 1]
         self.num_states = 4
         self.state = self.env.reset()

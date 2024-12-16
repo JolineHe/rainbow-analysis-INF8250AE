@@ -137,12 +137,13 @@ if __name__ == '__main__':
     env.render()
     state_dim = env.num_states
     action_dim = len(env.action_space)
-    agents = ["dqn", "ddqn", "dueling_ddqn", "multistep_dqn", 'prioritized_ddqn', 'distributional_dqn', 'noise_dqn', 'a3c', 'rainbow']
+    agents = ['distributional_dqn', 'noise_dqn', 'a3c', 'rainbow']
     for agent_name in agents:
         print(agent_name)
         args.agent = agent_name
         seeds_returns = {}
         for SEED in (range(40, 51)):
+            print(SEED)
             np.random.seed(SEED)
             if agent_name == "dqn":
                 agent = DQNAgent(state_dim=state_dim, action_dim=action_dim)
@@ -150,8 +151,6 @@ if __name__ == '__main__':
                 agent = DoubleDQNAgent(state_dim=state_dim, action_dim=action_dim)
             elif agent_name == "dueling_ddqn":
                 agent = DuelingDDQNAgent(state_dim=state_dim, action_dim=action_dim)
-            elif agent_name == "prioritized_ddqn":
-                agent = PrioritizedDoubleDQNAgent(state_dim=state_dim, action_dim=action_dim)
             elif agent_name == "distributional_dqn":
                 agent = DistributionalDQNAgent(state_dim=state_dim, action_dim=action_dim)
             elif agent_name == "noise_dqn":
@@ -165,7 +164,7 @@ if __name__ == '__main__':
 
             # Execute based on parameters
             if args.train:
-                steps, returns = train_agent(agent, num_episodes=500)
+                steps, returns = train_agent(agent, num_episodes=1000)
                 seeds_returns[SEED] = (steps, returns)
 
             if args.test:
