@@ -63,7 +63,7 @@ def train_agent(agent, num_episodes=1000):
     print(f"Model parameters saved to {args.agent}_model.pth")
 
 
-def test_agent(agent, test_start_state=(2,0), epsilon=0.1):
+def test_agent(agent, test_start_state=(2,0), epsilon=0.1, max_step=200):
     model_file = f"models/{args.agent}_model.pth"
     if not os.path.exists(model_file):
         print(f"Error: Model file {model_file} not found. Please train the agent first.")
@@ -79,8 +79,10 @@ def test_agent(agent, test_start_state=(2,0), epsilon=0.1):
     print(f"start from state:{state+(np.array([1,1]))}")
     env.set_state(state)
     total_reward = 0
+    step = 0
     while True:
         env.render()
+        step += 1
         state_one_hot = np.zeros(state_dim)
         state_index = state[0] * args.env_size[1] + state[1]
         state_one_hot[state_index] = 1
@@ -88,8 +90,11 @@ def test_agent(agent, test_start_state=(2,0), epsilon=0.1):
         action = env.action_space[action_idx]
         next_state, reward, done, _ = env.step(action)
         total_reward += reward
-        print(f"Action: {action}, next State: {next_state+(np.array([1,1]))}, Reward: {reward},total reward:{total_reward}, Done: {done}")
+        print(f"step:{step}, Action: {action}, next State: {next_state+(np.array([1,1]))}, Reward: {reward},total reward:{total_reward}, Done: {done}")
         if done:
+            break
+        if step == max_step:
+            print(f"stop because cann't reach the goal within {step} steps")
             break
         state = next_state
 
@@ -120,14 +125,15 @@ if __name__=='__main__':
     elif args.agent == "rainbow":
         agent = RainbowAgent(state_dim=state_dim, action_dim=action_dim)
     elif args.agent == "multistep_dqn":
-        agent = MultiStepDQNAgent(state_dim=state_dim, action_dim=action_dim, n_step=3)
+        agent = MultiStepDQNAgent(state_dim=state_dim, action_dim=action_dim, n_step=4)
 
     # Execute based on parameters
     if args.train:
         train_agent(agent, num_episodes=1000)
 
     if args.test:
-        test_agent(agent, test_start_state=(7,0), epsilon=0.1)
+        test_agent(agent, test_start_state=(2,0), epsilon=0.3, max_step=200)
+        input("press Enter to quit")
 
     # Save the trained model parameters
     # torch.save(agent.q_network.state_dict(), 'dqn_model.pth')
