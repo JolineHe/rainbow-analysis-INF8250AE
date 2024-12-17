@@ -132,7 +132,7 @@ if __name__=='__main__':
         train_agent(agent, num_episodes=1000)
 
     if args.test:
-        test_agent(agent, test_start_state=(2,0), epsilon=0.3, max_step=200)
+        test_agent(agent, test_start_state=(1,1), epsilon=0.3, max_step=200)
         input("press Enter to quit")
 
     # Save the trained model parameters
