@@ -112,7 +112,7 @@ def project_distribution_vec(next_dist, rewards, dones, gamma, support, v_min, v
 class DistributionalDQNAgent(DQNAgent):
     def __init__(self, state_dim, action_dim, gamma=0.99, lr=0.0001,
                  epsilon=1.0, epsilon_min=0.05, epsilon_decay=0.995,
-                 num_atoms=51, v_min=-50, v_max=50.0, device='cpu'):
+                 num_atoms=51, v_min=0, v_max=50.0, device='cpu'):
         super().__init__(state_dim, action_dim, gamma, lr, epsilon, epsilon_min, epsilon_decay, device)
         self.num_atoms = num_atoms
         self.v_min = v_min

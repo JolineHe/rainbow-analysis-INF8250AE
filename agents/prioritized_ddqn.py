@@ -103,8 +103,8 @@ class PrioritizedReplayBuffer:
 class PrioritizedDoubleDQNAgent(DoubleDQNAgent):
     def __init__(self, state_dim, action_dim, gamma=0.9, lr=0.001,
                  epsilon=1.0, epsilon_min=0.01, epsilon_decay=0.995,
-                 buffer_size=2000, alpha=0.6, beta_start=0.4, beta_frames=100000):
-        super().__init__(state_dim, action_dim, gamma, lr, epsilon, epsilon_min, epsilon_decay)
+                 buffer_size=2000, alpha=0.6, beta_start=0.4, beta_frames=100000, device='cpu'):
+        super().__init__(state_dim, action_dim, gamma, lr, epsilon, epsilon_min, epsilon_decay, device)
         self.replay_buffer = PrioritizedReplayBuffer(buffer_size, alpha, beta_start, beta_frames)
 
     def store_experience(self, state, action, reward, next_state, done):
@@ -115,12 +115,12 @@ class PrioritizedDoubleDQNAgent(DoubleDQNAgent):
             return
 
         states, actions, rewards, next_states, dones, idxs, is_weights = self.replay_buffer.sample(batch_size)
-        states = torch.FloatTensor(states)
-        actions = torch.LongTensor(actions).unsqueeze(1)
-        rewards = torch.FloatTensor(rewards).unsqueeze(1)
-        next_states = torch.FloatTensor(next_states)
-        dones = torch.FloatTensor(dones).unsqueeze(1)
-        is_weights = torch.FloatTensor(is_weights).unsqueeze(1)
+        states = torch.FloatTensor(states).to(self.device)
+        actions = torch.LongTensor(actions).unsqueeze(1).to(self.device)
+        rewards = torch.FloatTensor(rewards).unsqueeze(1).to(self.device)
+        next_states = torch.FloatTensor(next_states).to(self.device)
+        dones = torch.FloatTensor(dones).unsqueeze(1).to(self.device)
+        is_weights = torch.FloatTensor(is_weights).unsqueeze(1).to(self.device)
 
         q_values = self.q_network(states).gather(1, actions)
 

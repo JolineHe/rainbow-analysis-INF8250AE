@@ -18,7 +18,7 @@ from envs.cart_pole import CartPoleEnv
 import pickle
 
 def train_agent(agent, num_episodes=500):
-    max_steps = 200
+    max_steps = 150
     batch_size = 64
 
     returns = []
@@ -140,7 +140,8 @@ if __name__ == '__main__':
     action_dim = len(env.action_space)
     device = 'cuda:0' if torch.cuda.is_available() else 'cpu'
     print(f"Using device: {device}")
-    agents = ['dqn', 'ddqn', 'multistep_dqn', 'dueling_ddqn', 'distributional_dqn', 'noise_dqn', 'a3c', 'rainbow']
+    # agents = ['dqn', 'ddqn', 'multistep_dqn', 'dueling_ddqn', 'distributional_dqn', 'noise_dqn', 'a3c', 'rainbow']
+    agents = ['noise_dqn']
     results = {}
     for agent_name in agents:
         print(agent_name)
@@ -150,25 +151,27 @@ if __name__ == '__main__':
             print(SEED)
             np.random.seed(SEED)
             if agent_name == "dqn":
-                agent = DQNAgent(state_dim=state_dim, action_dim=action_dim, device=device)
+                agent = DQNAgent(state_dim=state_dim, action_dim=action_dim, epsilon_decay=0.99, device=device)
             elif agent_name == "ddqn":
-                agent = DoubleDQNAgent(state_dim=state_dim, action_dim=action_dim, device=device)
+                agent = DoubleDQNAgent(state_dim=state_dim, action_dim=action_dim, epsilon_decay=0.99, device=device)
             elif agent_name == "dueling_ddqn":
-                agent = DuelingDDQNAgent(state_dim=state_dim, action_dim=action_dim, device=device)
+                agent = DuelingDDQNAgent(state_dim=state_dim, action_dim=action_dim, epsilon_decay=0.99, device=device)
             elif agent_name == "distributional_dqn":
-                agent = DistributionalDQNAgent(state_dim=state_dim, action_dim=action_dim, device=device)
+                agent = DistributionalDQNAgent(state_dim=state_dim, action_dim=action_dim, v_min=0., v_max=150., epsilon_decay=0.99, device=device)
             elif agent_name == "noise_dqn":
                 agent = NoiseDQNAgent(state_dim=state_dim, action_dim=action_dim, device=device)
             elif agent_name == "a3c":
                 agent = A3CAgent(state_dim=state_dim, action_dim=action_dim, device=device)
             elif agent_name == "rainbow":
-                agent = RainbowAgent(state_dim=state_dim, action_dim=action_dim, device=device)
+                agent = RainbowAgent(state_dim=state_dim, action_dim=action_dim, v_min=0., v_max=50., n_step=3, device=device)
             elif agent_name == "multistep_dqn":
                 agent = MultiStepDQNAgent(state_dim=state_dim, action_dim=action_dim, n_step=3, device=device)
+            elif agent_name == "prioritized_ddqn":
+                agent = PrioritizedDoubleDQNAgent(state_dim=state_dim, action_dim=action_dim, epsilon_decay=0.99, device=device)
 
             # Execute based on parameters
             if args.train:
-                steps, returns = train_agent(agent, num_episodes=1000)
+                steps, returns = train_agent(agent, num_episodes=300)
                 seeds_returns[SEED] = (steps, returns)
 
             if args.test:
@@ -184,14 +187,15 @@ if __name__ == '__main__':
         plt.xlabel("Episodes")
         plt.ylabel("Total Reward")
         plt.fill_between(steps, mean_return - std_return, mean_return + std_return, alpha=0.3)
-        plt.ylim(0, 210)
+        plt.ylim(0, 160)
         plt.savefig(f"figures/{args.agent}-cartpole.png")
         # plt.show()
+        with open(f'results/{agent_name}.pkl', 'wb') as f:
+            pickle.dump(results, f)
 
     # Save the trained model parameters
     # torch.save(agent.q_network.state_dict(), 'dqn_model.pth')
     # print("Model parameters saved to dqn_model.pth")
-    with open('results/results.pkl', 'wb') as f:
-        pickle.dump(results, f)
+    
 
     

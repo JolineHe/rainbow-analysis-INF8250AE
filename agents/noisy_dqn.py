@@ -10,7 +10,7 @@ import numpy as np
 # from collections import deque
 
 class NoisyLinear(nn.Module):
-    def __init__(self, in_features, out_features, sigma_init=0.1):
+    def __init__(self, in_features, out_features, sigma_init=0.017):
         super(NoisyLinear, self).__init__()
         self.in_features = in_features
         self.out_features = out_features
