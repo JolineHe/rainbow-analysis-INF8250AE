@@ -72,10 +72,10 @@ class Noise_DQN(nn.Module):
         return self.fc3(x)
 
 class NoiseDQNAgent(DQNAgent):
-    def __init__(self, state_dim, action_dim, gamma=0.9, lr=0.001, epsilon=1.0, epsilon_min=0.01, epsilon_decay=0.995):
-        super().__init__(state_dim, action_dim, gamma, lr, epsilon, epsilon_min, epsilon_decay)
-        self.q_network = Noise_DQN(state_dim, action_dim)
-        self.target_q_network = Noise_DQN(state_dim, action_dim)
+    def __init__(self, state_dim, action_dim, gamma=0.9, lr=0.001, epsilon=1.0, epsilon_min=0.01, epsilon_decay=0.995, device='cpu'):
+        super().__init__(state_dim, action_dim, gamma, lr, epsilon, epsilon_min, epsilon_decay, device)
+        self.q_network = Noise_DQN(state_dim, action_dim).to(self.device)
+        self.target_q_network = Noise_DQN(state_dim, action_dim).to(self.device)
         self.target_q_network.load_state_dict(self.q_network.state_dict())
         # self.target_q_network.eval()
 
@@ -86,7 +86,7 @@ class NoiseDQNAgent(DQNAgent):
         # if np.random.rand() < self.epsilon:
         #     return np.random.randint(self.action_dim)
         self.reset_noise()
-        state_tensor = torch.FloatTensor(state).unsqueeze(0)
+        state_tensor = torch.FloatTensor(state).unsqueeze(0).to(self.device)
         with torch.no_grad():
             q_values = self.q_network(state_tensor)
         return torch.argmax(q_values).item()
@@ -108,13 +108,13 @@ class NoiseDQNAgent(DQNAgent):
             return
 
         batch = random.sample(self.replay_buffer, batch_size)
-        states, actions, rewards, next_states, dones = zip(*batch)
+        states, actions, rewards, next_states, dones = map(np.array, zip(*batch))
 
-        states = torch.FloatTensor(states)
-        actions = torch.LongTensor(actions).unsqueeze(1)
-        rewards = torch.FloatTensor(rewards).unsqueeze(1)
-        next_states = torch.FloatTensor(next_states)
-        dones = torch.FloatTensor(dones).unsqueeze(1)
+        states = torch.FloatTensor(states).to(self.device)
+        actions = torch.LongTensor(actions).unsqueeze(1).to(self.device)
+        rewards = torch.FloatTensor(rewards).unsqueeze(1).to(self.device)
+        next_states = torch.FloatTensor(next_states).to(self.device)
+        dones = torch.FloatTensor(dones).unsqueeze(1).to(self.device)
 
         self.reset_noise()
         q_values = self.q_network(states).gather(1, actions)

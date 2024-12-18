@@ -18,13 +18,15 @@ class ActorCriticNet(nn.Module):
         return policy_logits, value
 
 class A3CAgent:
-    def __init__(self, state_dim, action_dim, gamma=0.99, lr=1e-3, rollout_steps=5):
+    def __init__(self, state_dim, action_dim, gamma=0.99, lr=1e-3, rollout_steps=5, device='cpu'):
         self.state_dim = state_dim
         self.action_dim = action_dim
         self.gamma = gamma
         self.rollout_steps = rollout_steps
 
-        self.q_network = ActorCriticNet(state_dim, action_dim)
+        self.device = device
+
+        self.q_network = ActorCriticNet(state_dim, action_dim).to(self.device)
         self.optimizer = optim.Adam(self.q_network.parameters(), lr=lr)
 
         self.buffer_states = []
@@ -39,7 +41,7 @@ class A3CAgent:
         self.epsilon_decay = 1.0
 
     def act(self, state):
-        state_tensor = torch.FloatTensor(state).unsqueeze(0)
+        state_tensor = torch.FloatTensor(state).unsqueeze(0).to(self.device)
         with torch.no_grad():
             policy_logits, _ = self.q_network(state_tensor)
             probs = torch.softmax(policy_logits, dim=-1)
@@ -56,8 +58,8 @@ class A3CAgent:
         if len(self.buffer_states) < self.rollout_steps and not (len(self.buffer_states) > 0 and self.buffer_dones[-1]):
             return
 
-        states = torch.FloatTensor(self.buffer_states)
-        actions = torch.LongTensor(self.buffer_actions).unsqueeze(1)
+        states = torch.FloatTensor(self.buffer_states).to(self.device)
+        actions = torch.LongTensor(self.buffer_actions).unsqueeze(1).to(self.device)
         rewards = self.buffer_rewards
         dones = self.buffer_dones
 
@@ -65,7 +67,7 @@ class A3CAgent:
             if dones[-1]:
                 bootstrap_value = 0.0
             else:
-                next_state = torch.FloatTensor(self.buffer_states[-1]).unsqueeze(0)
+                next_state = torch.FloatTensor(self.buffer_states[-1]).unsqueeze(0).to(self.device)
                 _, next_value = self.q_network(next_state)
                 bootstrap_value = next_value.item()
 
@@ -75,7 +77,7 @@ class A3CAgent:
             R = r + self.gamma * R * (1 - d)
             returns.append(R)
         returns.reverse()
-        returns = torch.FloatTensor(returns).unsqueeze(1)
+        returns = torch.FloatTensor(returns).unsqueeze(1).to(self.device)
 
         policy_logits, values = self.q_network(states)
         log_probs = torch.log_softmax(policy_logits, dim=-1)

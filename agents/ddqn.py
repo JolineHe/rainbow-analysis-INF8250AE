@@ -1,6 +1,7 @@
 import torch
 import random
 from agents.dqn import DQNAgent
+import numpy as np
 
 class DoubleDQNAgent(DQNAgent):
     def train(self, batch_size=32):
@@ -8,13 +9,14 @@ class DoubleDQNAgent(DQNAgent):
             return
 
         batch = random.sample(self.replay_buffer, batch_size)
-        states, actions, rewards, next_states, dones = zip(*batch)
+        # states, actions, rewards, next_states, dones = zip(*batch)
+        states, actions, rewards, next_states, dones = map(np.array, zip(*batch))
 
-        states = torch.FloatTensor(states)
-        actions = torch.LongTensor(actions).unsqueeze(1)
-        rewards = torch.FloatTensor(rewards).unsqueeze(1)
-        next_states = torch.FloatTensor(next_states)
-        dones = torch.FloatTensor(dones).unsqueeze(1)
+        states = torch.FloatTensor(states).to(self.device)
+        actions = torch.LongTensor(actions).unsqueeze(1).to(self.device)
+        rewards = torch.FloatTensor(rewards).unsqueeze(1).to(self.device)
+        next_states = torch.FloatTensor(next_states).to(self.device)
+        dones = torch.FloatTensor(dones).unsqueeze(1).to(self.device)
 
         # gather(1,actions) collects Q-values from q_values based on indices in actions
         # For example, if actions=[1,0,2], it will collect Q-values for actions 1,0,2 from each state's Q-value vector

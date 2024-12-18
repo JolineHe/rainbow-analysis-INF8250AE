@@ -5,6 +5,7 @@ import numpy as np
 import torch
 import torch.nn as nn
 import torch.optim as optim
+from collections import deque
 
 
 ############################################
@@ -207,26 +208,29 @@ class RainbowAgent:
     # - Double DQN update
     # - Prioritized replay buffer
     def __init__(self, state_dim, action_dim, gamma=0.99, lr=1e-4,
-                 num_atoms=51, v_min=0.0, v_max=50.0,
+                 num_atoms=51, v_min=0.0, v_max=50.0, n_step=4,
                  buffer_size=10000, batch_size=32, alpha=0.6, beta_start=0.4, beta_frames=100000,
-                 epsilon=0.0, epsilon_min=0.0, epsilon_decay=1.0):
+                 epsilon=0.0, epsilon_min=0.0, epsilon_decay=1.0, device='cpu'):
+        self.device = device
         self.state_dim = state_dim
         self.action_dim = action_dim
         self.gamma = gamma
         self.num_atoms = num_atoms
         self.v_min = v_min
         self.v_max = v_max
-        self.support = torch.linspace(v_min, v_max, num_atoms)
+        self.support = torch.linspace(v_min, v_max, num_atoms).to(self.device)
         self.delta_z = (v_max - v_min) / (num_atoms - 1)
         self.batch_size = batch_size
 
-        self.q_network = RainbowNetwork(state_dim, action_dim, num_atoms, v_min, v_max)
-        self.target_q_network = RainbowNetwork(state_dim, action_dim, num_atoms, v_min, v_max)
+        self.q_network = RainbowNetwork(state_dim, action_dim, num_atoms, v_min, v_max).to(self.device)
+        self.target_q_network = RainbowNetwork(state_dim, action_dim, num_atoms, v_min, v_max).to(self.device)
         self.target_q_network.load_state_dict(self.q_network.state_dict())
         self.target_q_network.eval()
 
         self.optimizer = optim.Adam(self.q_network.parameters(), lr=lr)
         self.replay_buffer = PrioritizedReplayBuffer(buffer_size, alpha, beta_start, beta_frames)
+        self.n_step = n_step
+        self.n_step_buffer = deque(maxlen=n_step)
 
         # Epsilon not really needed (NoisyNet provides exploration), but keep for compatibility
         self.epsilon = epsilon
@@ -235,14 +239,38 @@ class RainbowAgent:
 
     def act(self, state):
         # With NoisyNet we don't need epsilon-greedy, just pick max Q-value action.
-        state_t = torch.FloatTensor(state).unsqueeze(0)
+        state_t = torch.FloatTensor(state).unsqueeze(0).to(self.device)
         with torch.no_grad():
             dist = self.q_network(state_t) # [1, action_dim, num_atoms]
         q_values = (dist * self.support.unsqueeze(0).unsqueeze(0)).sum(dim=2) # [1, action_dim]
         return torch.argmax(q_values, dim=1).item()
 
+    # def store_experience(self, state, action, reward, next_state, done):
+    #     self.replay_buffer.store((state, action, reward, next_state, done))
+
     def store_experience(self, state, action, reward, next_state, done):
-        self.replay_buffer.store((state, action, reward, next_state, done))
+        """
+        Store experience in n-step buffer and replay buffer.
+        """
+        self.n_step_buffer.append((state, action, reward, next_state, done))
+        if len(self.n_step_buffer) == self.n_step or done:
+            n_step_state, n_step_action, n_step_return, n_step_next_state, n_step_done = self._get_n_step_info()
+            self.replay_buffer.store((n_step_state, n_step_action, n_step_return, n_step_next_state, n_step_done))
+
+    def _get_n_step_info(self):
+        """
+        Compute n-step return and get the n-step transition.
+        """
+        R = 0
+        for i, (_, _, reward, _, done) in enumerate(self.n_step_buffer):
+            R += (self.gamma ** i) * reward
+            if done:
+                break
+
+        n_step_state, n_step_action, _, _, _ = self.n_step_buffer[0]
+        _, _, _, n_step_next_state, n_step_done = self.n_step_buffer[i]
+
+        return n_step_state, n_step_action, R, n_step_next_state, n_step_done
 
     def project_distribution(self, next_dist, rewards, dones):
         # next_dist: [batch, num_atoms] (already chosen by next_actions)
@@ -272,6 +300,45 @@ class RainbowAgent:
                 projected_dist[neq_idx, u_neq] += next_dist[neq_idx, i]*(b[neq_idx]-l_neq.float())
 
         return projected_dist
+    
+    def project_distribution_vec(self, next_dist, rewards, dones):
+        num_atoms = self.support.size(0)
+        delta_z = (self.v_max - self.v_min) / (num_atoms - 1)
+
+        # Compute Tz and clamp to range [v_min, v_max]
+        Tz = rewards + (1 - dones) * self.gamma * self.support[None, :]
+        Tz = torch.clamp(Tz, self.v_min, self.v_max)
+
+        # Compute projection indices
+        b = (Tz - self.v_min) / delta_z
+        l = b.floor().long()
+        u = b.ceil().long()
+
+        # Clamp indices to valid range
+        l = torch.clamp(l, 0, num_atoms - 1)
+        u = torch.clamp(u, 0, num_atoms - 1)
+
+        # Compute offsets for interpolation
+        u_offset = (u.float() - b)
+        l_offset = (b - l.float())
+
+        # Handle edge case where l == u
+        eq_mask = (l == u)
+        l_offset[eq_mask] = 1.0  # Assign the full probability to `l` if `l == u`
+        u_offset[eq_mask] = 0.0
+
+        # Initialize the projected distribution
+        projected_dist = torch.zeros_like(next_dist)
+
+        # Scatter-add probabilities to the projected distribution
+        projected_dist.scatter_add_(
+            1, l, (next_dist * u_offset).view_as(l)
+        )
+        projected_dist.scatter_add_(
+            1, u, (next_dist * l_offset).view_as(u)
+        )
+
+        return projected_dist
 
     def train(self, batch_size=None):
         if len(self.replay_buffer) < self.batch_size:
@@ -280,12 +347,12 @@ class RainbowAgent:
             batch_size = self.batch_size
 
         states, actions, rewards, next_states, dones, idxs, is_weights = self.replay_buffer.sample(batch_size)
-        states = torch.FloatTensor(states)
-        actions = torch.LongTensor(actions).unsqueeze(1)
-        rewards = torch.FloatTensor(rewards).unsqueeze(1)
-        next_states = torch.FloatTensor(next_states)
-        dones = torch.FloatTensor(dones).unsqueeze(1)
-        is_weights = torch.FloatTensor(is_weights).unsqueeze(1)
+        states = torch.FloatTensor(states).to(self.device)
+        actions = torch.LongTensor(actions).unsqueeze(1).to(self.device)
+        rewards = torch.FloatTensor(rewards).unsqueeze(1).to(self.device)
+        next_states = torch.FloatTensor(next_states).to(self.device)
+        dones = torch.FloatTensor(dones).unsqueeze(1).to(self.device)
+        is_weights = torch.FloatTensor(is_weights).unsqueeze(1).to(self.device)
 
         # Noisy reset
         self.q_network.reset_noise()
@@ -304,7 +371,7 @@ class RainbowAgent:
             target_next_dist = self.target_q_network(next_states) # [B, action_dim, num_atoms]
             target_next_dist = target_next_dist.gather(1, next_actions.unsqueeze(-1).expand(batch_size,1,self.num_atoms)).squeeze(1) # [B, num_atoms]
 
-            projected_dist = self.project_distribution(target_next_dist, rewards, dones)
+            projected_dist = self.project_distribution_vec(target_next_dist, rewards, dones)
 
         dist_log = torch.log(dist + 1e-8)
         loss_element = -(projected_dist * dist_log).sum(dim=1)
