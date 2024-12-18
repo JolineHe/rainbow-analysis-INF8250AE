@@ -5,36 +5,50 @@ from agents.ddqn import DoubleDQNAgent
 
 
 class SumTree:
+    """
+    SumTree is a binary tree data structure for efficient storage and sampling in prioritized experience replay.
+    Main functionalities:
+    1. Store experience data and their priority weights
+    2. Sample experiences based on priority weights 
+    3. Efficiently update priority weights
+    """
     def __init__(self, capacity):
-        self.capacity = capacity
-        self.tree = np.zeros(2 * capacity - 1)
-        self.data = np.zeros(capacity, dtype=object)
-        self.data_pointer = 0
+        # Initialize binary tree array and data storage
+        self.capacity = capacity  # Number of leaf nodes (experience capacity)
+        self.tree = np.zeros(2 * capacity - 1)  # Binary tree array storing priority weights
+        self.data = np.zeros(capacity, dtype=object)  # Array storing experience data
+        self.data_pointer = 0  # Points to next write position
 
     def add(self, p, data):
+        """Add new experience and its priority"""
+        # Calculate leaf index and store data
         idx = self.data_pointer + self.capacity - 1
         self.data[self.data_pointer] = data
-        self.update(idx, p)
+        self.update(idx, p)  # Update priority
 
+        # Circular write
         self.data_pointer += 1
         if self.data_pointer >= self.capacity:
             self.data_pointer = 0
 
     def update(self, idx, p):
+        """Update node priority and propagate to root"""
         change = p - self.tree[idx]
         self.tree[idx] = p
+        # Propagate changes upward
         while idx != 0:
             idx = (idx - 1) // 2
             self.tree[idx] += change
 
     def get_leaf(self, v):
+        """Sample a leaf node based on priority weight"""
         idx = 0
         while True:
             left = 2 * idx + 1
             right = left + 1
-            if left >= len(self.tree):
+            if left >= len(self.tree):  # Reached leaf node
                 return idx
-            else:
+            else:  # Choose left/right subtree based on weight
                 if v <= self.tree[left]:
                     idx = left
                 else:
@@ -43,8 +57,8 @@ class SumTree:
 
     @property
     def total_p(self):
+        """Return sum of all priority weights"""
         return self.tree[0]
-
 class PrioritizedReplayBuffer:
     def __init__(self, capacity, alpha=0.6, beta_start=0.4, beta_frames=100000):
         self.tree = SumTree(capacity)
@@ -79,6 +93,7 @@ class PrioritizedReplayBuffer:
             priorities.append(p)
 
         sampling_probabilities = priorities / self.tree.total_p
+        sampling_probabilities = np.clip(sampling_probabilities, 1e-5, 1.0)  # Avoid division by zero
         is_weight = np.power(len(self) * sampling_probabilities, -beta)
         is_weight /= is_weight.max()
         states, actions, rewards, next_states, dones = zip(*batch)
@@ -88,13 +103,13 @@ class PrioritizedReplayBuffer:
     def update_priorities(self, idxs, errors):
         epsilon = 1e-5
         for idx, error in zip(idxs, errors):
-            p = (np.abs(error) + epsilon) ** self.alpha
+            p = (abs(error) + epsilon) ** self.alpha
             self.tree.update(idx, p)
             if p > self.max_p:
                 self.max_p = p
 
     def __len__(self):
-        # 当数据还未填满时，长度为data_pointer，否则为capacity
+        #return data_pointer when buffer is not full, otherwise capacity
         return min(self.tree.data_pointer, self.capacity) if self.tree.data_pointer != 0 else self.capacity
 
     def _beta_by_frame(self, frame_idx):
@@ -103,7 +118,7 @@ class PrioritizedReplayBuffer:
 class PrioritizedDoubleDQNAgent(DoubleDQNAgent):
     def __init__(self, state_dim, action_dim, gamma=0.9, lr=0.001,
                  epsilon=1.0, epsilon_min=0.01, epsilon_decay=0.995,
-                 buffer_size=2000, alpha=0.6, beta_start=0.4, beta_frames=100000, device='cpu'):
+                 buffer_size=200, alpha=0.6, beta_start=0.4, beta_frames=100000, device='cpu'):
         super().__init__(state_dim, action_dim, gamma, lr, epsilon, epsilon_min, epsilon_decay, device)
         self.replay_buffer = PrioritizedReplayBuffer(buffer_size, alpha, beta_start, beta_frames)
 
@@ -130,7 +145,7 @@ class PrioritizedDoubleDQNAgent(DoubleDQNAgent):
 
         target_q_values = rewards + (1 - dones) * self.gamma * next_q_values_target.detach()
 
-        errors = (q_values.detach() - target_q_values).cpu().numpy()
+        errors = (q_values.detach() - target_q_values)      #(q_values.detach() - target_q_values).cpu().numpy()
         loss_element_wise = self.loss_fn(q_values, target_q_values)
         loss = (loss_element_wise * is_weights).mean()
 
