@@ -6,20 +6,24 @@ import torch
 
 from agents.ddqn import DoubleDQNAgent
 from agents.dqn import DQNAgent
-from agents.dueling_ddqn import DuelingDDQNAgent
+# from agents.dueling_ddqn import DuelingDDQNAgent
+from agents.my_dueling_ddqn import DuelingDDQNAgent
 from agents.multistep_dqn import MultiStepDQNAgent
-from agents.prioritized_ddqn import PrioritizedDoubleDQNAgent
+# from agents.prioritized_ddqn import PrioritizedDoubleDQNAgent
+from agents.my_prioritized_ddqn import PrioritizedDoubleDQNAgent
 from agents.distributional_dqn import DistributionalDQNAgent
-from agents.noisy_dqn import NoiseDQNAgent
+# from agents.noisy_dqn import NoiseDQNAgent
+from agents.my_noisy_dqn import NoiseDQNAgent
 from agents.a3c_dqn import A3CAgent
-from agents.rainbow import RainbowAgent
+# from agents.rainbow import RainbowAgent
+from agents.my_rainbow import RainbowAgent
 from arguments import args
 from envs.cart_pole import CartPoleEnv
 import pickle
 
 def train_agent(agent, num_episodes=500):
-    max_steps = 150
-    batch_size = 64
+    max_steps = 100
+    batch_size = 128
 
     returns = []
     steps = []
@@ -123,7 +127,7 @@ if __name__=='__main_single__':
 
     # Execute based on parameters
     if args.train:
-        train_agent(agent, num_episodes=500)
+        train_agent(agent, num_episodes=300)
 
     if args.test:
         test_agent(agent, test_start_state=(7,0), epsilon=0.1)
@@ -140,8 +144,8 @@ if __name__ == '__main__':
     action_dim = len(env.action_space)
     device = 'cuda:0' if torch.cuda.is_available() else 'cpu'
     print(f"Using device: {device}")
-    # agents = ['dqn', 'ddqn', 'multistep_dqn', 'dueling_ddqn', 'distributional_dqn', 'noise_dqn', 'a3c', 'rainbow']
-    agents = ['noise_dqn']
+    agents = ['dqn', 'ddqn', 'multistep_dqn', 'dueling_ddqn', 'prioritized_ddqn', 'distributional_dqn', 'noise_dqn', 'a3c', 'rainbow']
+    # agents = ['rainbow']
     results = {}
     for agent_name in agents:
         print(agent_name)
@@ -157,15 +161,15 @@ if __name__ == '__main__':
             elif agent_name == "dueling_ddqn":
                 agent = DuelingDDQNAgent(state_dim=state_dim, action_dim=action_dim, epsilon_decay=0.99, device=device)
             elif agent_name == "distributional_dqn":
-                agent = DistributionalDQNAgent(state_dim=state_dim, action_dim=action_dim, v_min=0., v_max=150., epsilon_decay=0.99, device=device)
+                agent = DistributionalDQNAgent(state_dim=state_dim, action_dim=action_dim, v_min=0., v_max=110., epsilon_decay=0.99, device=device)
             elif agent_name == "noise_dqn":
-                agent = NoiseDQNAgent(state_dim=state_dim, action_dim=action_dim, device=device)
+                agent = NoiseDQNAgent(state_dim=state_dim, action_dim=action_dim, sigma=0.1, device=device)
             elif agent_name == "a3c":
                 agent = A3CAgent(state_dim=state_dim, action_dim=action_dim, device=device)
             elif agent_name == "rainbow":
-                agent = RainbowAgent(state_dim=state_dim, action_dim=action_dim, v_min=0., v_max=50., n_step=3, device=device)
+                agent = RainbowAgent(state_dim=state_dim, action_dim=action_dim, v_min=0., v_max=110., n_step=4, sigma=0.1, device=device)
             elif agent_name == "multistep_dqn":
-                agent = MultiStepDQNAgent(state_dim=state_dim, action_dim=action_dim, n_step=3, device=device)
+                agent = MultiStepDQNAgent(state_dim=state_dim, action_dim=action_dim, epsilon_decay=0.99, n_step=2, device=device)
             elif agent_name == "prioritized_ddqn":
                 agent = PrioritizedDoubleDQNAgent(state_dim=state_dim, action_dim=action_dim, epsilon_decay=0.99, device=device)
 
@@ -187,7 +191,7 @@ if __name__ == '__main__':
         plt.xlabel("Episodes")
         plt.ylabel("Total Reward")
         plt.fill_between(steps, mean_return - std_return, mean_return + std_return, alpha=0.3)
-        plt.ylim(0, 160)
+        plt.ylim(0, 110)
         plt.savefig(f"figures/{args.agent}-cartpole.png")
         # plt.show()
         with open(f'results/{agent_name}.pkl', 'wb') as f:

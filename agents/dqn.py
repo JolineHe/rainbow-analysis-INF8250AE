@@ -40,7 +40,6 @@ class DQNAgent:
         self.loss_fn = nn.MSELoss()
 
         self.replay_buffer = deque(maxlen=2000)
-        print(f"Using device: {next(self.q_network.parameters()).device}")
         
 
     def act(self, state):

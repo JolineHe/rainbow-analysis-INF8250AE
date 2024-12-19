@@ -24,6 +24,7 @@ class MultiStepDQNAgent(DQNAgent):
         if len(self.n_step_buffer) == self.n_step or done:
             n_step_state, n_step_action, n_step_return, n_step_next_state, n_step_done = self._get_n_step_info()
             super().store_experience(n_step_state, n_step_action, n_step_return, n_step_next_state, n_step_done)
+    
 
     def _get_n_step_info(self):
         """
@@ -39,6 +40,7 @@ class MultiStepDQNAgent(DQNAgent):
         _, _, _, n_step_next_state, n_step_done = self.n_step_buffer[i]
 
         return n_step_state, n_step_action, R, n_step_next_state, n_step_done
+
 
     def train(self, batch_size=32):
         if len(self.replay_buffer) < batch_size:
@@ -56,10 +58,11 @@ class MultiStepDQNAgent(DQNAgent):
 
         q_values = self.q_network(states).gather(1, actions)
         next_q_values = self.target_q_network(next_states).max(1, keepdim=True)[0]
-        target_q_values = rewards + (1 - dones) * (self.gamma ** self.n_step) * next_q_values
+        target_q_values = rewards + (1 - dones) * self.gamma**self.n_step * next_q_values
 
         loss = self.loss_fn(q_values, target_q_values)
         self.optimizer.zero_grad()
         loss.backward()
         self.optimizer.step()
+
 
