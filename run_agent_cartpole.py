@@ -161,13 +161,13 @@ if __name__ == '__main__':
             elif agent_name == "dueling_ddqn":
                 agent = DuelingDDQNAgent(state_dim=state_dim, action_dim=action_dim, epsilon_decay=0.99, device=device)
             elif agent_name == "distributional_dqn":
-                agent = DistributionalDQNAgent(state_dim=state_dim, action_dim=action_dim, v_min=0., v_max=110., epsilon_decay=0.99, device=device)
+                agent = DistributionalDQNAgent(state_dim=state_dim, action_dim=action_dim, v_min=0., v_max=100., epsilon_decay=0.99, device=device)
             elif agent_name == "noise_dqn":
                 agent = NoiseDQNAgent(state_dim=state_dim, action_dim=action_dim, sigma=0.1, device=device)
             elif agent_name == "a3c":
                 agent = A3CAgent(state_dim=state_dim, action_dim=action_dim, device=device)
             elif agent_name == "rainbow":
-                agent = RainbowAgent(state_dim=state_dim, action_dim=action_dim, v_min=0., v_max=110., n_step=4, sigma=0.1, device=device)
+                agent = RainbowAgent(state_dim=state_dim, action_dim=action_dim, v_min=0., v_max=100., n_step=4, sigma=0.1, device=device)
             elif agent_name == "multistep_dqn":
                 agent = MultiStepDQNAgent(state_dim=state_dim, action_dim=action_dim, epsilon_decay=0.99, n_step=2, device=device)
             elif agent_name == "prioritized_ddqn":

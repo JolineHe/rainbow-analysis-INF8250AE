@@ -115,7 +115,7 @@ class PrioritizedDoubleDQNAgent(DoubleDQNAgent):
         with torch.no_grad():
             q_values = self.q_network(state_tensor)[action]
             target_q_values = self.target_q_network(next_state_tensor)
-            print(target_q_values.shape)
+            # print(target_q_values.shape)
 
         transition = (state, action, reward, next_state, done)
 
