@@ -90,7 +90,12 @@ class PrioritizedReplayBuffer:
         sampling_probabilities = np.array(priorities) / self.tree.total()
         is_weights = np.power(self.tree.n_entries * sampling_probabilities, -self.beta)
         is_weights /= is_weights.max()
-        return zip(*batch), idxs, is_weights
+        try:
+            batch = zip(*batch)
+        except:
+            with open('error.txt', 'w') as f:
+                f.write(str(batch))
+        return batch, idxs, is_weights
     
     def batch_update(self, tree_idx, abs_errors):#Update the importance sampling weight
         abs_errors += self.epsilon
