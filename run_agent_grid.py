@@ -3,13 +3,13 @@ from arguments import args
 import matplotlib.pyplot as plt
 from agents.dqn import DQNAgent
 from agents.ddqn import DoubleDQNAgent
-from agents.dueling_ddqn import DuelingDDQNAgent
+from agents.my_dueling_ddqn import DuelingDDQNAgent
 from agents.multistep_dqn import MultiStepDQNAgent
-from agents.prioritized_ddqn import PrioritizedDoubleDQNAgent
+from agents.my_prioritized_ddqn import PrioritizedDoubleDQNAgent
 from agents.distributional_dqn import DistributionalDQNAgent
 from agents.a3c_dqn import A3CAgent
 from agents.noisy_dqn import NoiseDQNAgent
-from agents.rainbow import RainbowAgent
+from agents.my_rainbow import RainbowAgent
 import numpy as np
 import torch
 import os
@@ -153,14 +153,13 @@ if __name__ == '__main__':
     action_dim = len(env.action_space)
     device = 'cuda:0' if torch.cuda.is_available() else 'cpu'
     print(f"Using device: {device}")
-    agents = ['dqn', 'ddqn', 'multistep_dqn', 'dueling_ddqn', 'distributional_dqn', 'noise_dqn', 'a3c', 'rainbow', 'prioritized_ddqn']
-    # agents = ['dqn']
+    # agents = ['dqn', 'ddqn', 'multistep_dqn', 'dueling_ddqn', 'distributional_dqn', 'noise_dqn', 'a3c', 'rainbow', 'prioritized_ddqn']
+    agents = ['ddqn']
     results = {}
     for agent_name in agents:
         print(agent_name)
         args.agent = agent_name
         seeds_returns = {}
-        # for SEED in (range(40, 51)):
         for SEED in (range(40, 51)):
             print(SEED)
             np.random.seed(SEED)
@@ -171,15 +170,17 @@ if __name__ == '__main__':
             elif agent_name == "dueling_ddqn":
                 agent = DuelingDDQNAgent(state_dim=state_dim, action_dim=action_dim, device=device)
             elif agent_name == "distributional_dqn":
-                agent = DistributionalDQNAgent(state_dim=state_dim, action_dim=action_dim, device=device)
+                agent = DistributionalDQNAgent(state_dim=state_dim, action_dim=action_dim, v_min=-30, v_max=30., epsilon_decay=0.99, device=device)
             elif agent_name == "noise_dqn":
                 agent = NoiseDQNAgent(state_dim=state_dim, action_dim=action_dim, device=device)
             elif agent_name == "a3c":
                 agent = A3CAgent(state_dim=state_dim, action_dim=action_dim, device=device)
-            elif agent_name == "rainbow":
-                agent = RainbowAgent(state_dim=state_dim, action_dim=action_dim, device=device)
             elif agent_name == "multistep_dqn":
                 agent = MultiStepDQNAgent(state_dim=state_dim, action_dim=action_dim, n_step=3, device=device)
+            elif args.agent == "prioritized_ddqn":
+                agent = PrioritizedDoubleDQNAgent(state_dim=state_dim, action_dim=action_dim)
+            elif agent_name == "rainbow":
+                agent = RainbowAgent(state_dim=state_dim, action_dim=action_dim, v_min=-30, v_max=30., n_step=4, sigma=0.1, device=device)
 
             # Execute based on parameters
             if args.train:
@@ -194,6 +195,8 @@ if __name__ == '__main__':
                         state_tensor = torch.FloatTensor(state_one_hot).unsqueeze(0).to(agent.device)
                         with torch.no_grad():
                             q_values = agent.q_network(state_tensor)
+                        if agent_name in ["distributional_dqn", "rainbow" ]:
+                            q_values = torch.sum(q_values * agent.support, dim=2)
                         if type(q_values) == tuple:
                             q_values, t = q_values
                         value_function[state] = q_values.max().item()
