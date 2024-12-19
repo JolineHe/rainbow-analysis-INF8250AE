@@ -23,7 +23,7 @@ import pickle
 
 def train_agent(agent, num_episodes=500):
     max_steps = 100
-    batch_size = 128
+    batch_size = 64
 
     returns = []
     steps = []
@@ -144,8 +144,8 @@ if __name__ == '__main__':
     action_dim = len(env.action_space)
     device = 'cuda:0' if torch.cuda.is_available() else 'cpu'
     print(f"Using device: {device}")
-    agents = ['dqn', 'ddqn', 'multistep_dqn', 'dueling_ddqn', 'prioritized_ddqn', 'distributional_dqn', 'noise_dqn', 'a3c', 'rainbow']
-    # agents = ['rainbow']
+    # agents = ['dqn', 'ddqn', 'multistep_dqn', 'dueling_ddqn', 'prioritized_ddqn', 'distributional_dqn', 'noise_dqn', 'a3c', 'rainbow']
+    agents = ['rainbow']
     results = {}
     for agent_name in agents:
         print(agent_name)
@@ -167,9 +167,9 @@ if __name__ == '__main__':
             elif agent_name == "a3c":
                 agent = A3CAgent(state_dim=state_dim, action_dim=action_dim, device=device)
             elif agent_name == "rainbow":
-                agent = RainbowAgent(state_dim=state_dim, action_dim=action_dim, v_min=0., v_max=100., n_step=4, sigma=0.1, device=device)
+                agent = RainbowAgent(state_dim=state_dim, action_dim=action_dim, v_min=0., v_max=100., n_step=1, sigma=0.017, device=device)
             elif agent_name == "multistep_dqn":
-                agent = MultiStepDQNAgent(state_dim=state_dim, action_dim=action_dim, epsilon_decay=0.99, n_step=2, device=device)
+                agent = MultiStepDQNAgent(state_dim=state_dim, action_dim=action_dim, epsilon_decay=0.99, n_step=4, device=device)
             elif agent_name == "prioritized_ddqn":
                 agent = PrioritizedDoubleDQNAgent(state_dim=state_dim, action_dim=action_dim, epsilon_decay=0.99, device=device)
 
