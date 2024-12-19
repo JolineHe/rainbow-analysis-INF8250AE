@@ -66,6 +66,8 @@ value_function_df = pd.DataFrame(value_function,
                                  index=[f"Row {i}" for i in range(env_size[0])])
 print("Optimal Value Function Table:")
 print(value_function_df)
+value_function_df.to_csv(f"figures/dp_mean_value_function.csv")
+
 
 input('press Enter to continue')
 
