@@ -221,7 +221,7 @@ if __name__ == '__main__':
     device = 'cuda:0' if torch.cuda.is_available() else 'cpu'
     print(f"Using device: {device}")
     if args.agent == None:
-        agents = ['dueling_ddqn', 'distributional_dqn', 'noise_dqn', 'prioritized_ddqn', 'rainbow']
+        agents = ['dqn','ddqn', 'multistep_dqn','dueling_ddqn', 'distributional_dqn', 'noise_dqn', 'prioritized_ddqn', 'rainbow']
         # agents = ['multistep_dqn', 'dueling_ddqn', 'distributional_dqn', 'noise_dqn', 'prioritized_ddqn', 'rainbow']
     else:
         agents = [args.agent]
