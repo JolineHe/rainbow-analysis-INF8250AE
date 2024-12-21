@@ -2,6 +2,12 @@ from envs.grid_world import GridWorld
 import numpy as np
 import pandas as pd 
 from arguments import args           
+import matplotlib.pyplot as plt
+import imageio.v2 as imageio
+from PIL import Image
+import io
+import pickle
+
 
 
 env = GridWorld()
@@ -66,7 +72,9 @@ value_function_df = pd.DataFrame(value_function,
                                  index=[f"Row {i}" for i in range(env_size[0])])
 print("Optimal Value Function Table:")
 print(value_function_df)
-value_function_df.to_csv(f"figures/dp_mean_value_function.csv")
+with open(f'results/value_functions/dp_value_function.pkl', 'wb') as f:
+    pickle.dump(value_function_df, f)  
+    print(f"value functions saved to results/value_functions/dp_value_function.pkl")
 
 
 input('press Enter to continue')
@@ -78,13 +86,25 @@ env.render()
 done = False
 next_state = start
 total_reward=0
+
+
+frames = []
 while(not done):
     ply = policy[next_state]
     action = action_space[ply]
     next_state, reward, done, _ = env.step(action)
     total_reward += reward
     print(f"Action: {action}, next State: {next_state+(np.array([1,1]))}, Reward: {reward}, total reward:{total_reward}, Done: {done}")
+    
+    # Capture the rendered frame
     env.render()
+    # Save the current figure
+    img_buf = io.BytesIO()
+    plt.savefig(img_buf, format='png')
+    img_buf.seek(0)
+    frames.append(Image.open(img_buf))
 
+# Save as GIF
+imageio.mimsave('results/figures/gif/dp_grid.gif', frames, duration=0.5)
 
 input('press Enter to quit')
